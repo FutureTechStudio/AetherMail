@@ -121,9 +121,9 @@ async function initApp() {
 function bindEvents() {
     // Navigation
     elements.navItems.forEach(item => {
-        item.addEventListener('click', (e) => {
+        item.addEventListener('click', async (e) => {
             if (state.isDeleting) {
-                alert("Please wait until the active deletion process completes.");
+                await showAppAlert("Navigation Locked", "Please wait until the active deletion process completes.", "warning");
                 e.preventDefault();
                 return;
             }
@@ -183,7 +183,7 @@ function bindEvents() {
                 if (data.success) {
                     updateQueueDeleteButtonState(!isQueued);
                 } else {
-                    alert("Failed: " + data.error);
+                    await showAppAlert("Operation Failed", data.error, "warning");
                 }
             } catch (err) {
                 console.error("Queue delete toggle error", err);
@@ -747,7 +747,7 @@ function toggleNavSection(id) {
 // Open Unsubscribe Helper Tool
 async function openUnsubscribeTool(event) {
     if (state.isDeleting) {
-        alert("Please wait until the active deletion process completes.");
+        await showAppAlert("Navigation Locked", "Please wait until the active deletion process completes.", "warning");
         if (event) event.preventDefault();
         return;
     }
@@ -825,13 +825,13 @@ async function runUnsubscribeScan() {
         const res = await apiFetch('/api/unsubscribe/scan', { method: 'POST' });
         const data = await res.json();
         
-        alert(data.message || "Scan complete!");
+        await showAppAlert("Scan Complete", data.message || "Scan complete!", "success");
         
         // Reload list and jump to the new page
         await loadUnsubscribeList(true);
     } catch (err) {
         console.error("Unsubscribe scan failed", err);
-        alert("Scan failed. Check server console.");
+        await showAppAlert("Scan Failed", "Scan failed. Check server console.", "warning");
     } finally {
         elements.scanUnsubBtn.disabled = false;
         elements.startScanBtn.disabled = false;
@@ -862,10 +862,10 @@ async function runExtractNextScan() {
         // Reload list and automatically jump to the newly added page
         await loadUnsubscribeList(true);
         
-        alert(data.message || "Extraction complete!");
+        await showAppAlert("Extraction Complete", data.message || "Extraction complete!", "success");
     } catch (err) {
         console.error("Extraction scan failed", err);
-        alert("Extraction failed. Check server console.");
+        await showAppAlert("Extraction Failed", "Extraction failed. Check server console.", "warning");
         if (btn) {
             btn.innerHTML = originalHTML;
             btn.disabled = false;
@@ -1066,7 +1066,7 @@ async function markInitiated(senderEmail, element) {
 
 async function openBulkDeleteTool(event) {
     if (state.isDeleting) {
-        alert("Please wait until the active deletion process completes.");
+        await showAppAlert("Navigation Locked", "Please wait until the active deletion process completes.", "warning");
         if (event) event.preventDefault();
         return;
     }
@@ -1286,14 +1286,30 @@ function showAppConfirm(title, message) {
         const msgEl = document.getElementById('confirm-modal-message');
         const cancelBtn = document.getElementById('confirm-modal-cancel');
         const submitBtn = document.getElementById('confirm-modal-submit');
+        const headerEl = modal ? modal.querySelector('.modal-header') : null;
         
-        if (!modal || !cancelBtn || !submitBtn) {
+        if (!modal || !cancelBtn || !submitBtn || !headerEl) {
             resolve(confirm(message));
             return;
         }
         
+        // Reset modal styling for Confirm dialog
+        cancelBtn.style.display = 'inline-flex';
+        cancelBtn.textContent = 'Cancel';
+        
+        submitBtn.className = 'danger-btn';
+        submitBtn.style.background = '#ef4444';
+        submitBtn.style.color = 'white';
+        submitBtn.style.borderColor = 'transparent';
+        submitBtn.innerHTML = '<span>Delete Threads</span>';
+        
+        const existingIcon = headerEl.querySelector('.modal-icon');
+        if (existingIcon) existingIcon.remove();
+        headerEl.insertAdjacentHTML('afterbegin', '<i data-lucide="alert-triangle" class="modal-icon warning" style="color: #ef4444; width:20px; height:20px;"></i>');
+        
         titleEl.textContent = title;
         msgEl.textContent = message;
+        
         modal.style.display = 'flex';
         lucide.createIcons();
         
@@ -1312,10 +1328,74 @@ function showAppConfirm(title, message) {
     });
 }
 
+function showAppAlert(title, message, type = 'info') {
+    return new Promise((resolve) => {
+        const modal = document.getElementById('app-confirm-modal');
+        const titleEl = document.getElementById('confirm-modal-title');
+        const msgEl = document.getElementById('confirm-modal-message');
+        const cancelBtn = document.getElementById('confirm-modal-cancel');
+        const submitBtn = document.getElementById('confirm-modal-submit');
+        const headerEl = modal ? modal.querySelector('.modal-header') : null;
+        
+        if (!modal || !cancelBtn || !submitBtn || !headerEl) {
+            alert(message);
+            resolve();
+            return;
+        }
+        
+        // Hide cancel button for Alert mode
+        cancelBtn.style.display = 'none';
+        
+        // Set content
+        titleEl.textContent = title;
+        msgEl.textContent = message;
+        
+        // Configure styles based on alert type
+        const existingIcon = headerEl.querySelector('.modal-icon');
+        if (existingIcon) existingIcon.remove();
+        
+        let iconHtml = '';
+        if (type === 'success') {
+            iconHtml = '<i data-lucide="check-circle" class="modal-icon" style="color: #10b981; width:20px; height:20px;"></i>';
+            submitBtn.className = 'action-check-btn';
+            submitBtn.style.background = '#10b981';
+            submitBtn.style.color = 'white';
+            submitBtn.style.borderColor = 'transparent';
+        } else if (type === 'warning') {
+            iconHtml = '<i data-lucide="alert-triangle" class="modal-icon" style="color: #ef4444; width:20px; height:20px;"></i>';
+            submitBtn.className = 'danger-btn';
+            submitBtn.style.background = '#ef4444';
+            submitBtn.style.color = 'white';
+            submitBtn.style.borderColor = 'transparent';
+        } else {
+            iconHtml = '<i data-lucide="info" class="modal-icon" style="color: #3b82f6; width:20px; height:20px;"></i>';
+            submitBtn.className = 'action-check-btn';
+            submitBtn.style.background = '#3b82f6';
+            submitBtn.style.color = 'white';
+            submitBtn.style.borderColor = 'transparent';
+        }
+        
+        headerEl.insertAdjacentHTML('afterbegin', iconHtml);
+        submitBtn.innerHTML = '<span>OK</span>';
+        
+        modal.style.display = 'flex';
+        lucide.createIcons();
+        
+        const cleanup = () => {
+            modal.style.display = 'none';
+            submitBtn.removeEventListener('click', onSubmit);
+            resolve();
+        };
+        
+        const onSubmit = () => cleanup();
+        submitBtn.addEventListener('click', onSubmit);
+    });
+}
+
 async function runBulkDelete() {
     const pendingSenders = bulkDeleteState.list.filter(item => item.status === 'pending' || item.status === 'processing');
     if (pendingSenders.length === 0) {
-        alert("No pending senders to delete.");
+        await showAppAlert("Queue Empty", "No pending senders to delete.", "info");
         return;
     }
     
@@ -1420,7 +1500,7 @@ async function runBulkDelete() {
         console.error("Bulk deletion execution failed", err);
         if (progressTitle) progressTitle.textContent = 'Error Occurred';
         if (progressDetails) progressDetails.textContent = `Execution halted due to connection error: ${err.message}`;
-        alert("Deletion failed. Check console.");
+        await showAppAlert("Deletion Failed", "Deletion failed. Check console.", "warning");
     } finally {
         state.isDeleting = false;
         elements.startBulkDeleteBtn.disabled = false;
@@ -1458,7 +1538,7 @@ function updateQueueDeleteButtonState(isQueued) {
 
 async function openArchivesTool(event) {
     if (state.isDeleting) {
-        alert("Please wait until the active deletion process completes.");
+        await showAppAlert("Navigation Locked", "Please wait until the active deletion process completes.", "warning");
         if (event) event.preventDefault();
         return;
     }
@@ -1558,7 +1638,7 @@ function formatBytes(bytes) {
 async function handleRouting() {
     // 1. Navigation Guard
     if (state.isDeleting && window.location.hash !== state.activeHash) {
-        alert("Please wait until the active deletion process completes.");
+        await showAppAlert("Navigation Locked", "Please wait until the active deletion process completes.", "warning");
         window.removeEventListener('hashchange', handleRouting);
         window.location.hash = state.activeHash;
         setTimeout(() => {
