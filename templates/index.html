@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AetherMail - Promotions & Updates Digest</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div id="app" class="app-container">
+        
+        <!-- SIDEBAR -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <div class="logo-icon">
+                        <i data-lucide="sparkles"></i>
+                    </div>
+                    <h1>AetherMail</h1>
+                </div>
+                <span class="badge-status">Local Engine</span>
+            </div>
+            
+            <div class="sidebar-search">
+                <div class="search-box">
+                    <i data-lucide="search" class="search-icon"></i>
+                    <input type="text" id="sender-search-input" placeholder="Search senders..." autocomplete="off">
+                </div>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <!-- Collapsible Group: Email Categories -->
+                <div class="nav-section-title collapsible-header open" onclick="toggleNavSection('categories')">
+                    <span>Email Categories</span>
+                    <i data-lucide="chevron-right" class="chevron-icon" id="categories-chevron"></i>
+                </div>
+                <div class="collapsible-content open" id="categories-content">
+                    <a href="#" class="nav-item active" data-category="all">
+                        <i data-lucide="mail"></i>
+                        <span>All Messages</span>
+                        <span class="nav-badge" id="badge-all">-</span>
+                    </a>
+                    <a href="#" class="nav-item" data-category="promotions">
+                        <i data-lucide="tag"></i>
+                        <span>Promotions</span>
+                        <span class="nav-badge" id="badge-promotions">-</span>
+                    </a>
+                    <a href="#" class="nav-item" data-category="updates">
+                        <i data-lucide="info"></i>
+                        <span>Updates</span>
+                        <span class="nav-badge" id="badge-updates">-</span>
+                    </a>
+                </div>
+
+                <!-- Collapsible Group: Tools -->
+                <div class="nav-section-title collapsible-header open" style="margin-top: 16px;" onclick="toggleNavSection('tools')">
+                    <span>Tools</span>
+                    <i data-lucide="chevron-right" class="chevron-icon" id="tools-chevron"></i>
+                </div>
+                <div class="collapsible-content open" id="tools-content">
+                    <a href="#/tools/unsubscribe" class="nav-item" id="nav-unsubscribe">
+                        <i data-lucide="shield-alert"></i>
+                        <span>Unsubscribe Helper</span>
+                    </a>
+                    <a href="#/tools/bulk-delete" class="nav-item" id="nav-bulk-delete">
+                        <i data-lucide="trash-2"></i>
+                        <span>Bulk Delete</span>
+                    </a>
+                    <a href="#/tools/archives" class="nav-item" id="nav-archives">
+                        <i data-lucide="archive"></i>
+                        <span>Archived Backups</span>
+                    </a>
+                </div>
+            </nav>
+            
+            <!-- SYNC STATUS INDICATOR -->
+            <div class="sidebar-sync" id="sync-container">
+                <div class="sync-header">
+                    <div class="sync-title-group">
+                        <i data-lucide="database" class="sync-icon-small"></i>
+                        <span class="sync-title">Local Cache</span>
+                    </div>
+                    <span class="sync-indicator" id="sync-indicator">idle</span>
+                </div>
+                <div class="sync-progress-bar">
+                    <div class="sync-progress" id="sync-progress" style="width: 0%"></div>
+                </div>
+                <div class="sync-details" id="sync-details">
+                    Loading cache...
+                </div>
+                <button id="trigger-sync-btn" class="sync-action-btn">
+                    <i data-lucide="refresh-cw"></i> Sync Inbox
+                </button>
+            </div>
+            
+            <div class="sidebar-footer" id="account-status">
+                <div class="account-loader">
+                    <div class="spinner-small"></div>
+                    <span>Checking Google Link...</span>
+                </div>
+            </div>
+        </aside>
+        
+        <!-- COLUMN 1: SENDERS LIST -->
+        <main class="pane list-pane" id="senders-pane">
+            <div class="pane-header">
+                <div class="pane-title-area">
+                    <h2>Senders</h2>
+                    <span class="pane-subtitle" id="senders-count-summary">0 senders found</span>
+                </div>
+                <div class="header-actions">
+                    <select id="sender-sort-select" class="sort-select" title="Sort Senders">
+                        <option value="date" selected>📅 Date</option>
+                        <option value="alpha">🔤 Name</option>
+                        <option value="count">📊 Count</option>
+                    </select>
+                    <button id="refresh-btn" class="icon-btn" title="Refresh Senders">
+                        <i data-lucide="rotate-cw"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="pane-content" id="senders-list-container">
+                <!-- Loader -->
+                <div class="pane-message" id="senders-loader">
+                    <div class="spinner"></div>
+                    <p>Loading Senders...</p>
+                </div>
+                <!-- Senders list dynamic container -->
+                <div class="sender-cards-list" id="sender-cards"></div>
+            </div>
+        </main>
+        
+        <!-- COLUMN 2: SENDER EMAILS (ACCORDION & REPETITIVE GROUPS) -->
+        <section class="pane detail-list-pane" id="emails-pane">
+            <div class="pane-header" id="emails-pane-header">
+                <div class="pane-title-area">
+                    <h2 id="selected-sender-name">Select a Sender</h2>
+                    <span class="pane-subtitle" id="selected-sender-email">Choose from the left column to view messages</span>
+                </div>
+                <div class="header-actions">
+                    <button id="queue-delete-btn" class="danger-outline-btn" style="display: none;" title="Queue Sender for Bulk Delete">
+                        <i data-lucide="trash-2"></i> <span>Queue for Delete</span>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="pane-content" id="emails-list-container">
+                <div class="pane-message selection-placeholder">
+                    <div class="placeholder-art">
+                        <i data-lucide="inbox"></i>
+                    </div>
+                    <h3>No Sender Selected</h3>
+                    <p>Select a sender to expand their emails and examine repetitive notifications.</p>
+                </div>
+                
+                <div class="accordion-container" id="emails-accordion" style="display: none;"></div>
+            </div>
+        </section>
+        
+        <!-- COLUMN 3: EMAIL READER -->
+        <section class="pane reader-pane" id="reader-pane">
+            <div class="pane-header" id="reader-pane-header">
+                <div class="pane-title-area">
+                    <h2 id="email-subject-view">Subject</h2>
+                    <div class="email-meta" id="email-meta-view">
+                        <span class="meta-item"><strong id="email-from-view">From:</strong></span>
+                        <span class="meta-item" id="email-date-view">Date:</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="pane-content" id="reader-content-container">
+                <div class="pane-message selection-placeholder">
+                    <div class="placeholder-art">
+                        <i data-lucide="book-open"></i>
+                    </div>
+                    <h3>No Email Selected</h3>
+                    <p>Click on an email from the sender list to view its complete content.</p>
+                </div>
+                
+                <div id="email-body-wrapper" style="display: none; height: 100%;">
+                    <iframe id="email-body-iframe" sandbox="allow-same-origin" title="Email Content"></iframe>
+                </div>
+            </div>
+        </section>
+        
+        <!-- FULL-WIDTH TOOL VIEW -->
+        <main class="pane tool-pane" id="tool-view" style="display: none; flex-grow: 1;">
+            <div class="pane-header">
+                <div class="pane-title-area">
+                    <h2>Unsubscribe Helper</h2>
+                    <span class="pane-subtitle" id="tool-subtitle">Scan your cache to identify active subscriptions and locate unsubscribe links.</span>
+                </div>
+                <div class="header-actions" id="unsub-header-controls" style="display: flex; align-items: center; gap: 12px;">
+                    <!-- Dynamic page numbers and Extract button -->
+                </div>
+            </div>
+            
+            <div class="pane-content tool-content-area" style="padding: 24px;">
+                <!-- Scan Placeholder / Empty State -->
+                <div class="pane-message" id="unsub-placeholder" style="max-width: 600px; margin: 80px auto 0;">
+                    <div class="placeholder-art" style="background: hsla(145, 45%, 35%, 0.08); color: var(--primary); border-color: hsla(145, 45%, 35%, 0.15)">
+                        <i data-lucide="shield-alert"></i>
+                    </div>
+                    <h3>Unsubscribe Helper</h3>
+                    <p>This tool scans the most recent email header for each unique sender in your cache to extract quick-action unsubscribe links.</p>
+                    <button id="unsub-start-scan-btn" class="icon-btn" style="width:auto; margin-top:20px; padding: 10px 20px; background: var(--primary-gradient); color:white; border:none; gap:8px; border-radius:8px; cursor:pointer;">
+                        <i data-lucide="sparkles"></i> <span>Start Extraction Scan</span>
+                    </button>
+                </div>
+                
+                <!-- Table View (Hidden initially) -->
+                <div id="unsub-table-container" class="table-container" style="display: none; width:100%; overflow-x:auto;">
+                    <table class="unsub-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 50px; text-align: center;">#</th>
+                                <th>Sender</th>
+                                <th>Email</th>
+                                <th style="text-align: center;">Unread / Total</th>
+                                <th>Latest Subject</th>
+                                <th style="text-align: right;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="unsub-table-body">
+                            <!-- Dynamic rows -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+        
+        <!-- BULK DELETE MANAGER VIEW -->
+        <main class="pane tool-pane" id="bulk-delete-view" style="display: none; flex-grow: 1;">
+            <div class="pane-header">
+                <div class="pane-title-area">
+                    <h2>Bulk Delete Manager</h2>
+                    <span class="pane-subtitle">Review, queue, and bulk delete unnecessary notification threads from your Gmail.</span>
+                </div>
+                <div class="header-actions" style="display: flex; align-items: center; gap: 16px;">
+                    <label class="backup-checkbox-label" style="display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500; color: var(--text-secondary); cursor: pointer; user-select: none;">
+                        <input type="checkbox" id="keep-backup-checkbox" checked style="accent-color: var(--primary); cursor: pointer; width: 16px; height: 16px;">
+                        Keep local backup (delete from Gmail server only)
+                    </label>
+                    <button id="start-bulk-delete-btn" class="icon-btn danger-btn" style="width:auto; padding: 0 14px; gap:8px; height: 36px;" title="Start Deletion Process">
+                        <i data-lucide="trash-2"></i> <span>Start Deleting</span>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="pane-content tool-content-area" style="padding: 24px;">
+                <!-- Tab Headers -->
+                <div class="delete-tabs-container" style="display: flex; gap: 8px; margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 8px;">
+                    <button class="delete-tab active" id="tab-delete-queue" onclick="switchDeleteTab('queue')">Queue</button>
+                    <button class="delete-tab" id="tab-delete-history" onclick="switchDeleteTab('deleted')">Deleted</button>
+                </div>
+                
+                <!-- Progress Bar Container (Hidden by default) -->
+                <div id="delete-progress-container" style="display: none; background: var(--bg-pane-alt); border: 1px solid var(--border-color); border-radius: 8px; padding: 16px; margin-bottom: 20px; flex-direction: column; gap: 8px;">
+                    <div style="display: flex; justify-content: space-between; font-size: 13px; font-weight: 600; color: var(--text-primary);">
+                        <span id="delete-progress-title">Deleting threads...</span>
+                        <span id="delete-progress-number">0 / 0 senders</span>
+                    </div>
+                    <div style="width: 100%; height: 8px; background: rgba(0,0,0,0.05); border-radius: 4px; overflow: hidden;">
+                        <div id="delete-progress-bar" style="width: 0%; height: 100%; background: linear-gradient(90deg, var(--primary), #10b981); transition: width 0.3s ease;"></div>
+                    </div>
+                    <div style="font-size: 11px; color: var(--text-muted);" id="delete-progress-details">
+                        Preparing to delete...
+                    </div>
+                </div>
+                
+                <!-- Empty Placeholder State -->
+                <div class="pane-message" id="bulk-delete-placeholder" style="max-width: 600px; margin: 80px auto 0;">
+                    <div class="placeholder-art" style="background: hsla(0, 80%, 50%, 0.08); color: #ef4444; border-color: hsla(0, 80%, 50%, 0.15)">
+                        <i data-lucide="trash-2"></i>
+                    </div>
+                    <h3>No Senders Queued</h3>
+                    <p>Select any sender from your mail list and click <strong>Queue for Delete</strong> to add them here. Once added, you can bulk delete all of their emails from Gmail with a single click.</p>
+                </div>
+                
+                <!-- Table View (Hidden initially) -->
+                <div id="bulk-delete-table-container" class="table-container" style="display: none; width:100%; overflow-x:auto;">
+                    <table class="unsub-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 50px; text-align: center;">#</th>
+                                <th>Sender</th>
+                                <th>Email</th>
+                                <th style="text-align: center;">Total Emails</th>
+                                <th style="text-align: center;">Status</th>
+                                <th style="text-align: right;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="bulk-delete-table-body">
+                            <!-- Dynamic rows -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+        
+        <!-- ARCHIVED BACKUPS VIEW -->
+        <main class="pane tool-pane" id="archives-view" style="display: none; flex-grow: 1;">
+            <div class="pane-header">
+                <div class="pane-title-area">
+                    <h2>Archived Backups</h2>
+                    <span class="pane-subtitle">Download local ZIP backups of your deleted email senders.</span>
+                </div>
+            </div>
+            
+            <div class="pane-content tool-content-area" style="padding: 24px;">
+                <!-- Empty Placeholder State -->
+                <div class="pane-message" id="archives-placeholder" style="max-width: 600px; margin: 80px auto 0;">
+                    <div class="placeholder-art" style="background: hsla(210, 80%, 50%, 0.08); color: #3b82f6; border-color: hsla(210, 80%, 50%, 0.15)">
+                        <i data-lucide="archive"></i>
+                    </div>
+                    <h3>No Archives Created</h3>
+                    <p>When you delete email threads using the Bulk Delete manager with the backup copy option enabled, they will be archived as ZIP files and listed here.</p>
+                </div>
+                
+                <!-- Table View (Hidden initially) -->
+                <div id="archives-table-container" class="table-container" style="display: none; width:100%; overflow-x:auto;">
+                    <table class="unsub-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 50px; text-align: center;">#</th>
+                                <th>Sender Archive</th>
+                                <th style="text-align: center;">File Size</th>
+                                <th style="text-align: center;">Archive Date</th>
+                                <th style="text-align: right;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="archives-table-body">
+                            <!-- Dynamic rows -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+        
+    </div>
+    
+    <!-- Reusable Confirmation Modal -->
+    <div id="app-confirm-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-card">
+            <div class="modal-header">
+                <i data-lucide="alert-triangle" class="modal-icon warning"></i>
+                <h3 id="confirm-modal-title">Confirm Action</h3>
+            </div>
+            <div class="modal-body">
+                <p id="confirm-modal-message">Are you sure you want to proceed?</p>
+            </div>
+            <div class="modal-footer">
+                <button id="confirm-modal-cancel" class="action-check-btn" style="height:36px; padding:0 16px;">Cancel</button>
+                <button id="confirm-modal-submit" class="danger-btn" style="height:36px; padding:0 16px;">Delete Threads</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Custom JS -->
+    <script src="/static/js/app.js"></script>
+</body>
+</html>

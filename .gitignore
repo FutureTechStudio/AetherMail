@@ -1,0 +1,14 @@
+# Python environment & cache
+.venv/
+__pycache__/
+*.pyc
+
+# Gmail API OAuth Credentials & Tokens
+credentials.json
+token.json
+
+# Local database cache
+gmail_cache.db
+
+# Backup Archives
+archive/
