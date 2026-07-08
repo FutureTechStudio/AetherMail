@@ -6,6 +6,7 @@ import email.utils
 import sqlite3
 import threading
 import time
+import secrets
 from datetime import datetime
 from flask import Flask, jsonify, render_template, request, send_from_directory
 from google.auth.transport.requests import Request
@@ -14,6 +15,16 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 
 app = Flask(__name__)
+API_TOKEN = secrets.token_hex(16)
+
+@app.before_request
+def verify_api_token():
+    if request.path.startswith('/api/'):
+        if request.method == 'OPTIONS':
+            return
+        token = request.headers.get('X-API-Token')
+        if not token or token != API_TOKEN:
+            return jsonify({'error': 'Unauthorized: Invalid API Token'}), 403
 
 @app.after_request
 def add_header(response):
@@ -374,7 +385,7 @@ def start_sync():
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    return render_template('index.html', api_token=API_TOKEN)
 
 @app.route('/api/status')
 def status():

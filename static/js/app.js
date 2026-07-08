@@ -25,6 +25,18 @@ let bulkDeleteState = {
     list: []
 };
 
+// API Fetch Wrapper with API Token verification header
+const apiToken = document.querySelector('meta[name="api-token"]').getAttribute('content');
+
+async function apiFetch(url, options = {}) {
+    const defaultHeaders = {
+        'Content-Type': 'application/json',
+        'X-API-Token': apiToken
+    };
+    const headers = { ...defaultHeaders, ...options.headers };
+    return fetch(url, { ...options, headers });
+}
+
 // DOM Elements
 const elements = {
     senderSearch: document.getElementById('sender-search-input'),
@@ -156,13 +168,13 @@ function bindEvents() {
             
             try {
                 elements.queueDeleteBtn.disabled = true;
-                const statusRes = await fetch(`/api/delete-queue/status?sender_email=${encodeURIComponent(email)}`);
+                const statusRes = await apiFetch(`/api/delete-queue/status?sender_email=${encodeURIComponent(email)}`);
                 const statusData = await statusRes.json();
                 
                 const isQueued = statusData.is_queued;
                 const endpoint = isQueued ? '/api/delete-queue/remove' : '/api/delete-queue/add';
                 
-                const res = await fetch(endpoint, {
+                const res = await apiFetch(endpoint, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ sender_email: email })
@@ -190,7 +202,7 @@ function bindEvents() {
     elements.triggerSyncBtn.addEventListener('click', async () => {
         try {
             elements.triggerSyncBtn.disabled = true;
-            const res = await fetch('/api/sync/start', { method: 'POST' });
+            const res = await apiFetch('/api/sync/start', { method: 'POST' });
             const data = await res.json();
             updateSyncUI(data.sync);
             startSyncPolling();
@@ -205,7 +217,7 @@ function bindEvents() {
 // Check Authentication & Local Status
 async function checkStatus() {
     try {
-        const response = await fetch('/api/status');
+        const response = await apiFetch('/api/status');
         const data = await response.json();
         state.status = data;
         
@@ -247,7 +259,7 @@ async function fetchSenders(silent = false) {
     if (!silent) showLoader();
     
     try {
-        const response = await fetch(`/api/senders?category=${state.currentCategory}`);
+        const response = await apiFetch(`/api/senders?category=${state.currentCategory}`);
         if (!response.ok) throw new Error("HTTP error " + response.status);
         const data = await response.json();
         
@@ -371,7 +383,7 @@ async function selectSender(email) {
     showEmailsLoader();
     
     try {
-        const response = await fetch(`/api/senders/${email}/emails`);
+        const response = await apiFetch(`/api/senders/${email}/emails`);
         const data = await response.json();
         
         sender.groupedEmails = data.groupedEmails || [];
@@ -412,7 +424,7 @@ function showEmailsError() {
 // Silently refresh the emails list accordion
 async function reloadEmailsList(sender) {
     try {
-        const response = await fetch(`/api/senders/${sender.email}/emails`);
+        const response = await apiFetch(`/api/senders/${sender.email}/emails`);
         const data = await response.json();
         sender.groupedEmails = data.groupedEmails || [];
         
@@ -510,7 +522,7 @@ async function viewEmail(id, event) {
     showReaderLoading();
     
     try {
-        const response = await fetch(`/api/emails/${id}`);
+        const response = await apiFetch(`/api/emails/${id}`);
         if (!response.ok) throw new Error("HTTP error " + response.status);
         const data = await response.json();
         
@@ -614,7 +626,7 @@ function startSyncPolling() {
 
 async function pollSyncStatus() {
     try {
-        const response = await fetch('/api/sync/status');
+        const response = await apiFetch('/api/sync/status');
         const data = await response.json();
         
         updateSyncUI(data);
@@ -768,7 +780,7 @@ async function openUnsubscribeTool(event) {
 
 async function loadUnsubscribeList(selectNewPage = false) {
     try {
-        const res = await fetch('/api/unsubscribe/links');
+        const res = await apiFetch('/api/unsubscribe/links');
         const data = await res.json();
         
         unsubState.list = data.unsubscribe_list || [];
@@ -810,7 +822,7 @@ async function runUnsubscribeScan() {
         elements.startScanBtn.innerHTML = `<i data-lucide="loader-2" class="spinner-small" style="margin-right:6px"></i> Running Scan...`;
         lucide.createIcons();
         
-        const res = await fetch('/api/unsubscribe/scan', { method: 'POST' });
+        const res = await apiFetch('/api/unsubscribe/scan', { method: 'POST' });
         const data = await res.json();
         
         alert(data.message || "Scan complete!");
@@ -844,7 +856,7 @@ async function runExtractNextScan() {
     }
     
     try {
-        const res = await fetch('/api/unsubscribe/scan', { method: 'POST' });
+        const res = await apiFetch('/api/unsubscribe/scan', { method: 'POST' });
         const data = await res.json();
         
         // Reload list and automatically jump to the newly added page
@@ -980,7 +992,7 @@ async function toggleLocalUnsub(senderEmail, status, btnElement) {
     try {
         btnElement.disabled = true;
         const apiStatus = status ? 'unsubscribed' : 'none';
-        const res = await fetch('/api/unsubscribe/toggle', {
+        const res = await apiFetch('/api/unsubscribe/toggle', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -1040,7 +1052,7 @@ async function markInitiated(senderEmail, element) {
     }
     
     try {
-        await fetch('/api/unsubscribe/toggle', {
+        await apiFetch('/api/unsubscribe/toggle', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -1088,7 +1100,7 @@ async function openBulkDeleteTool(event) {
 
 async function loadDeleteQueue() {
     try {
-        const res = await fetch('/api/delete-queue');
+        const res = await apiFetch('/api/delete-queue');
         const data = await res.json();
         bulkDeleteState.list = data.delete_queue || [];
         filterAndRenderDeleteQueue();
@@ -1248,7 +1260,7 @@ function switchDeleteTab(tab) {
 async function removeFromDeleteQueue(senderEmail, btn) {
     try {
         if (btn) btn.disabled = true;
-        const res = await fetch('/api/delete-queue/remove', {
+        const res = await apiFetch('/api/delete-queue/remove', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ sender_email: senderEmail })
@@ -1355,7 +1367,7 @@ async function runBulkDelete() {
             }
             
             // 2. Call execute API for this specific sender
-            const res = await fetch('/api/delete-queue/execute', {
+            const res = await apiFetch('/api/delete-queue/execute', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ keep_local_backup: keepLocal, sender_email: sender.sender_email })
@@ -1423,7 +1435,7 @@ async function runBulkDelete() {
 
 async function checkSenderQueueStatus(email) {
     try {
-        const res = await fetch(`/api/delete-queue/status?sender_email=${encodeURIComponent(email)}`);
+        const res = await apiFetch(`/api/delete-queue/status?sender_email=${encodeURIComponent(email)}`);
         const data = await res.json();
         updateQueueDeleteButtonState(data.is_queued);
     } catch (err) {
@@ -1481,7 +1493,7 @@ async function openArchivesTool(event) {
 
 async function loadArchivesList() {
     try {
-        const res = await fetch('/api/archives');
+        const res = await apiFetch('/api/archives');
         const data = await res.json();
         renderArchivesTable(data.archives || []);
     } catch (err) {
