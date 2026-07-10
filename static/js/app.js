@@ -309,6 +309,12 @@ async function checkStatus() {
                         </div>
                     </div>
                 </div>
+                <div style="margin-top: 8px; width: 100%; border-top: 1px solid var(--border-color); padding-top: 6px; display: flex; justify-content: flex-start; padding-left: 2px;">
+                    <a href="#" onclick="openAboutModal(event)" style="font-size: 11px; color: var(--text-muted); text-decoration: none; display: inline-flex; align-items: center; gap: 4px; font-weight: 500;">
+                        <i data-lucide="info" style="width: 12px; height: 12px;"></i>
+                        <span>About AetherMail</span>
+                    </a>
+                </div>
             `;
             
             // Initial sync UI update
@@ -350,6 +356,12 @@ async function checkStatus() {
                                 </ol>
                             </div>
                         </div>
+                        <div style="margin-top: 8px; width: 100%; border-top: 1px solid var(--border-color); padding-top: 6px; display: flex; justify-content: flex-start; padding-left: 2px;">
+                            <a href="#" onclick="openAboutModal(event)" style="font-size: 11px; color: var(--text-muted); text-decoration: none; display: inline-flex; align-items: center; gap: 4px; font-weight: 500;">
+                                <i data-lucide="info" style="width: 12px; height: 12px;"></i>
+                                <span>About AetherMail</span>
+                            </a>
+                        </div>
                     </div>
                 `;
             } else {
@@ -369,6 +381,12 @@ async function checkStatus() {
                         <i data-lucide="link" style="width: 14px; height: 14px;"></i>
                         <span>Link Google Account</span>
                     </button>
+                    <div style="margin-top: 8px; width: 100%; border-top: 1px solid var(--border-color); padding-top: 6px; display: flex; justify-content: flex-start; padding-left: 2px;">
+                        <a href="#" onclick="openAboutModal(event)" style="font-size: 11px; color: var(--text-muted); text-decoration: none; display: inline-flex; align-items: center; gap: 4px; font-weight: 500;">
+                            <i data-lucide="info" style="width: 12px; height: 12px;"></i>
+                            <span>About AetherMail</span>
+                        </a>
+                    </div>
                 `;
             }
         }
@@ -404,10 +422,6 @@ async function checkStatus() {
                     <button onclick="openLinkProfileModal(event)" class="switcher-action-btn primary">
                         <i data-lucide="plus" style="width:13px; height:13px;"></i>
                         <span>Link another account...</span>
-                    </button>
-                    <button onclick="openAboutModal(event)" class="switcher-action-btn secondary" style="display: flex; align-items: center; gap: 6px; border: 1px solid var(--border-color); background: transparent; padding: 6px 12px; border-radius: 6px; font-size: 11px; color: var(--text-secondary); cursor: pointer; width: 100%; box-sizing: border-box; justify-content: center; margin-top: 4px; margin-bottom: 4px;">
-                        <i data-lucide="info" style="width:13px; height:13px; color: var(--text-muted);"></i>
-                        <span>About AetherMail</span>
                     </button>
                     ${data.authenticated ? `
                     <button onclick="unlinkGoogleAccount(event)" class="switcher-action-btn danger">
