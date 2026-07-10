@@ -100,7 +100,11 @@ const elements = {
     modalUploadStatus: document.getElementById('modal-upload-status'),
     modalCredentialsFileInput: document.getElementById('modal-credentials-file-input'),
     modalLinkCancel: document.getElementById('modal-link-cancel'),
-    modalLinkSubmit: document.getElementById('modal-link-submit')
+    modalLinkSubmit: document.getElementById('modal-link-submit'),
+    
+    // About Modal elements
+    aboutModal: document.getElementById('app-about-modal'),
+    modalAboutClose: document.getElementById('modal-about-close')
 };
 
 // Initialize Application
@@ -274,6 +278,12 @@ function bindEvents() {
     if (elements.modalLinkSubmit) {
         elements.modalLinkSubmit.addEventListener('click', submitLinkProfileModal);
     }
+    
+    if (elements.modalAboutClose) {
+        elements.modalAboutClose.addEventListener('click', () => {
+            if (elements.aboutModal) elements.aboutModal.style.display = 'none';
+        });
+    }
 }
 
 // Check Authentication & Local Status
@@ -394,6 +404,10 @@ async function checkStatus() {
                     <button onclick="openLinkProfileModal(event)" class="switcher-action-btn primary">
                         <i data-lucide="plus" style="width:13px; height:13px;"></i>
                         <span>Link another account...</span>
+                    </button>
+                    <button onclick="openAboutModal(event)" class="switcher-action-btn secondary" style="display: flex; align-items: center; gap: 6px; border: 1px solid var(--border-color); background: transparent; padding: 6px 12px; border-radius: 6px; font-size: 11px; color: var(--text-secondary); cursor: pointer; width: 100%; box-sizing: border-box; justify-content: center; margin-top: 4px; margin-bottom: 4px;">
+                        <i data-lucide="info" style="width:13px; height:13px; color: var(--text-muted);"></i>
+                        <span>About AetherMail</span>
                     </button>
                     ${data.authenticated ? `
                     <button onclick="unlinkGoogleAccount(event)" class="switcher-action-btn danger">
@@ -2175,6 +2189,27 @@ function toggleCredentialsInstructions(event) {
     }
 }
 
+function openAboutModal(event) {
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+    const menu = document.getElementById('profile-switcher-menu');
+    if (menu) menu.style.display = 'none';
+    
+    if (elements.aboutModal) {
+        elements.aboutModal.style.display = 'flex';
+    }
+    lucide.createIcons();
+}
+
+function closeAboutModal(event) {
+    if (event) event.preventDefault();
+    if (elements.aboutModal) {
+        elements.aboutModal.style.display = 'none';
+    }
+}
+
 window.toggleNavSection = toggleNavSection;
 window.openUnsubscribeTool = openUnsubscribeTool;
 window.openBulkDeleteTool = openBulkDeleteTool;
@@ -2192,4 +2227,6 @@ window.switchActiveProfile = switchActiveProfile;
 window.openLinkProfileModal = openLinkProfileModal;
 window.submitLinkProfileModal = submitLinkProfileModal;
 window.toggleCredentialsInstructions = toggleCredentialsInstructions;
+window.openAboutModal = openAboutModal;
+window.closeAboutModal = closeAboutModal;
 

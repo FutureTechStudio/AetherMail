@@ -444,6 +444,56 @@
         </div>
     </div>
     
+    <!-- About Modal -->
+    <div id="app-about-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-card" style="max-width: 420px;">
+            <div class="modal-header" style="border-bottom: 1px solid var(--border-color); padding-bottom: 12px; display: flex; align-items: center; gap: 12px;">
+                <i data-lucide="shield-check" class="modal-icon" style="color: #10b981; margin: 0; width: 28px; height: 28px;"></i>
+                <div>
+                    <h3 style="margin: 0; font-size: 16px; font-weight: 700; color: var(--text-primary);">About AetherMail</h3>
+                    <span style="font-size: 11px; color: var(--text-muted);">Version 1.0.0 (Local Sandbox)</span>
+                </div>
+            </div>
+            <div class="modal-body" style="display: flex; flex-direction: column; gap: 12px; padding: 16px 0; font-size: 13px; line-height: 1.5; color: var(--text-secondary);">
+                <p style="margin: 0;">
+                    <strong>AetherMail</strong> is a secure, privacy-focused desktop assistant designed to clean up your email inbox, unsubscribe from mailing lists, and delete clutter in bulk.
+                </p>
+                
+                <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 4px;">
+                    <!-- Key point 1: Local only -->
+                    <div style="display: flex; gap: 10px; align-items: flex-start;">
+                        <i data-lucide="home" style="width: 16px; height: 16px; color: #3b82f6; flex-shrink: 0; margin-top: 2px;"></i>
+                        <div>
+                            <strong style="color: var(--text-primary); font-size: 12px;">100% Local Execution</strong>
+                            <div style="font-size: 11px; color: var(--text-muted); margin-top: 1px;">The backend runs entirely on your local computer. No remote cloud hosting or cloud data transfers.</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Key point 2: No tracking -->
+                    <div style="display: flex; gap: 10px; align-items: flex-start;">
+                        <i data-lucide="eye-off" style="width: 16px; height: 16px; color: #10b981; flex-shrink: 0; margin-top: 2px;"></i>
+                        <div>
+                            <strong style="color: var(--text-primary); font-size: 12px;">Zero Data Collection</strong>
+                            <div style="font-size: 11px; color: var(--text-muted); margin-top: 1px;">Your email records, authentication tokens, and backup files are kept strictly on your local disk. No tracking, telemetry, or third-party servers.</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Key point 3: Secure boundaries -->
+                    <div style="display: flex; gap: 10px; align-items: flex-start;">
+                        <i data-lucide="lock" style="width: 16px; height: 16px; color: #f59e0b; flex-shrink: 0; margin-top: 2px;"></i>
+                        <div>
+                            <strong style="color: var(--text-primary); font-size: 12px;">Isolated Sandbox Cache</strong>
+                            <div style="font-size: 11px; color: var(--text-muted); margin-top: 1px;">Uses multi-profile directory isolation, separating cache SQLite files and credentials per profile for security.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="border-top: 1px solid var(--border-color); padding-top: 12px; margin-top: 4px;">
+                <button id="modal-about-close" class="action-check-btn primary" style="height:36px; padding:0 20px; background: var(--primary-gradient); border: none; color: white;">Got It</button>
+            </div>
+        </div>
+    </div>
+    
     <!-- Custom JS -->
     <script src="/static/js/app.js"></script>
 </body>
