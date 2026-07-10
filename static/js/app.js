@@ -90,7 +90,17 @@ const elements = {
     archivesView: document.getElementById('archives-view'),
     archivesPlaceholder: document.getElementById('archives-placeholder'),
     archivesTableContainer: document.getElementById('archives-table-container'),
-    archivesTableBody: document.getElementById('archives-table-body')
+    archivesTableBody: document.getElementById('archives-table-body'),
+    
+    // Link Profile Modal elements
+    linkProfileModal: document.getElementById('app-link-profile-modal'),
+    modalSourceExisting: document.getElementById('source-existing'),
+    modalSourceUpload: document.getElementById('source-upload'),
+    modalUploadContainer: document.getElementById('modal-upload-container'),
+    modalUploadStatus: document.getElementById('modal-upload-status'),
+    modalCredentialsFileInput: document.getElementById('modal-credentials-file-input'),
+    modalLinkCancel: document.getElementById('modal-link-cancel'),
+    modalLinkSubmit: document.getElementById('modal-link-submit')
 };
 
 // Initialize Application
@@ -229,6 +239,41 @@ function bindEvents() {
             elements.triggerSyncBtn.disabled = false;
         }
     });
+
+    // Radio toggle events inside Link Profile Modal
+    if (elements.modalSourceExisting) {
+        elements.modalSourceExisting.addEventListener('change', () => {
+            if (elements.modalUploadContainer) elements.modalUploadContainer.style.display = 'none';
+        });
+    }
+    if (elements.modalSourceUpload) {
+        elements.modalSourceUpload.addEventListener('change', () => {
+            if (elements.modalUploadContainer) elements.modalUploadContainer.style.display = 'flex';
+        });
+    }
+    
+    // File upload file input trigger
+    if (elements.modalCredentialsFileInput) {
+        elements.modalCredentialsFileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                state.modalPendingFile = file;
+                if (elements.modalUploadStatus) {
+                    elements.modalUploadStatus.textContent = `Selected: ${file.name}`;
+                }
+            }
+        });
+    }
+    
+    // Cancel & Submit button events
+    if (elements.modalLinkCancel) {
+        elements.modalLinkCancel.addEventListener('click', () => {
+            if (elements.linkProfileModal) elements.linkProfileModal.style.display = 'none';
+        });
+    }
+    if (elements.modalLinkSubmit) {
+        elements.modalLinkSubmit.addEventListener('click', submitLinkProfileModal);
+    }
 }
 
 // Check Authentication & Local Status
@@ -293,7 +338,7 @@ async function checkStatus() {
                             </div>
                         </div>
                     </div>
-                    <button onclick="linkGoogleAccount(event)" class="sync-action-btn" style="width: 100%; justify-content: center; margin-top: 4px; background: var(--primary-gradient); border: none; color: white; display: flex; align-items: center; gap: 6px; cursor: pointer; box-sizing: border-box;">
+                    <button onclick="openLinkProfileModal(event)" class="sync-action-btn" style="width: 100%; justify-content: center; margin-top: 4px; background: var(--primary-gradient); border: none; color: white; display: flex; align-items: center; gap: 6px; cursor: pointer; box-sizing: border-box;">
                         <i data-lucide="link" style="width: 14px; height: 14px;"></i>
                         <span>Link Google Account</span>
                     </button>
@@ -329,7 +374,7 @@ async function checkStatus() {
                     ${listHtml}
                 </div>
                 <div class="profile-switcher-footer">
-                    <button onclick="linkGoogleAccount(event)" class="switcher-action-btn primary">
+                    <button onclick="openLinkProfileModal(event)" class="switcher-action-btn primary">
                         <i data-lucide="plus" style="width:13px; height:13px;"></i>
                         <span>Link another account...</span>
                     </button>
@@ -1914,6 +1959,21 @@ async function unlinkGoogleAccount(event) {
     }
 }
 
+async function uploadCredentialsFile(file) {
+    if (!file) return false;
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await fetch('/api/auth/upload-credentials', {
+        method: 'POST',
+        headers: {
+            'X-API-Token': apiToken
+        },
+        body: formData
+    });
+    const data = await response.json();
+    return data.success;
+}
+
 async function handleCredentialsUpload(event) {
     const file = event.target.files[0];
     if (!file) return;
@@ -1930,23 +1990,12 @@ async function handleCredentialsUpload(event) {
         </div>
     `;
     
-    const formData = new FormData();
-    formData.append('file', file);
-    
     try {
-        const response = await fetch('/api/auth/upload-credentials', {
-            method: 'POST',
-            headers: {
-                'X-API-Token': apiToken
-            },
-            body: formData
-        });
-        const data = await response.json();
-        
-        if (data.success) {
+        const success = await uploadCredentialsFile(file);
+        if (success) {
             await showAppAlert("Upload Success", "credentials.json uploaded successfully! You can now link your Google Account.", "success");
         } else {
-            await showAppAlert("Upload Failed", data.error || "Failed to upload file.", "warning");
+            await showAppAlert("Upload Failed", "Failed to upload file.", "warning");
         }
     } catch (err) {
         console.error("Upload error:", err);
@@ -1998,6 +2047,103 @@ async function switchActiveProfile(email) {
     }
 }
 
+function openLinkProfileModal(event) {
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+    
+    // Hide the profile switcher menu dropdown if it's open
+    const menu = document.getElementById('profile-switcher-menu');
+    if (menu) menu.style.display = 'none';
+    
+    // Reset file selection state
+    state.modalPendingFile = null;
+    if (elements.modalCredentialsFileInput) {
+        elements.modalCredentialsFileInput.value = '';
+    }
+    if (elements.modalUploadStatus) {
+        elements.modalUploadStatus.textContent = 'Select credentials.json';
+    }
+    
+    // Check if credentials.json is currently present on the server
+    const hasExisting = state.status && state.status.credentials_present;
+    
+    if (!hasExisting) {
+        // Hide option 1, select option 2
+        if (elements.modalSourceExisting) elements.modalSourceExisting.checked = false;
+        const optExisting = document.getElementById('option-existing-label');
+        if (optExisting) optExisting.style.display = 'none';
+        if (elements.modalSourceUpload) elements.modalSourceUpload.checked = true;
+        if (elements.modalUploadContainer) elements.modalUploadContainer.style.display = 'flex';
+    } else {
+        // Show option 1, select option 1
+        if (elements.modalSourceExisting) elements.modalSourceExisting.checked = true;
+        const optExisting = document.getElementById('option-existing-label');
+        if (optExisting) optExisting.style.display = 'flex';
+        if (elements.modalSourceUpload) elements.modalSourceUpload.checked = false;
+        if (elements.modalUploadContainer) elements.modalUploadContainer.style.display = 'none';
+    }
+    
+    if (elements.linkProfileModal) {
+        elements.linkProfileModal.style.display = 'flex';
+    }
+    lucide.createIcons();
+}
+
+async function submitLinkProfileModal(event) {
+    if (event) event.preventDefault();
+    
+    const useUpload = elements.modalSourceUpload && elements.modalSourceUpload.checked;
+    
+    if (useUpload) {
+        if (!state.modalPendingFile) {
+            await showAppAlert("File Required", "Please upload a credentials.json file first to proceed.", "warning");
+            return;
+        }
+        
+        // Disable submit button and show loading spinner
+        if (elements.modalLinkSubmit) {
+            elements.modalLinkSubmit.disabled = true;
+            elements.modalLinkSubmit.innerHTML = `<div class="spinner-small" style="width:12px; height:12px; border-width:2px; margin-right:6px; border-color:white;"></div> Uploading...`;
+        }
+        
+        try {
+            const success = await uploadCredentialsFile(state.modalPendingFile);
+            if (!success) {
+                await showAppAlert("Upload Failed", "Server rejected credentials.json file.", "warning");
+                if (elements.modalLinkSubmit) {
+                    elements.modalLinkSubmit.disabled = false;
+                    elements.modalLinkSubmit.innerHTML = `Proceed to Link`;
+                }
+                return;
+            }
+        } catch (err) {
+            console.error("Credentials upload failed:", err);
+            await showAppAlert("Upload Error", "Failed to upload client secrets JSON to server.", "warning");
+            if (elements.modalLinkSubmit) {
+                elements.modalLinkSubmit.disabled = false;
+                elements.modalLinkSubmit.innerHTML = `Proceed to Link`;
+            }
+            return;
+        }
+    }
+    
+    // Hide modal
+    if (elements.linkProfileModal) {
+        elements.linkProfileModal.style.display = 'none';
+    }
+    
+    // Reset submit button state
+    if (elements.modalLinkSubmit) {
+        elements.modalLinkSubmit.disabled = false;
+        elements.modalLinkSubmit.innerHTML = `Proceed to Link`;
+    }
+    
+    // Proceed to launch the Google OAuth login consent screen
+    await linkGoogleAccount();
+}
+
 window.toggleNavSection = toggleNavSection;
 window.openUnsubscribeTool = openUnsubscribeTool;
 window.openBulkDeleteTool = openBulkDeleteTool;
@@ -2012,4 +2158,6 @@ window.unlinkGoogleAccount = unlinkGoogleAccount;
 window.handleCredentialsUpload = handleCredentialsUpload;
 window.toggleProfileSwitcher = toggleProfileSwitcher;
 window.switchActiveProfile = switchActiveProfile;
+window.openLinkProfileModal = openLinkProfileModal;
+window.submitLinkProfileModal = submitLinkProfileModal;
 
