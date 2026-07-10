@@ -414,6 +414,28 @@
                         <input type="file" id="modal-credentials-file-input" style="display:none;">
                     </label>
                 </div>
+                
+                <!-- Help link & guide -->
+                <div style="margin-top: 4px;">
+                    <a href="#" onclick="toggleCredentialsInstructions(event)" style="font-size: 12px; color: #3b82f6; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; font-weight: 500;">
+                        <i data-lucide="help-circle" style="width:13px; height:13px;"></i>
+                        <span>How to get credentials.json?</span>
+                    </a>
+                    
+                    <div id="credentials-instructions-modal" class="instructions-accordion" style="display: none; flex-direction: column; gap: 8px; margin-top: 8px; padding: 12px; background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); border-radius: 8px; font-size: 11px; line-height: 1.5; color: var(--text-secondary); max-height: 200px; overflow-y: auto;">
+                        <div style="font-weight: 700; color: var(--text-primary); margin-bottom: 2px;">Steps to generate credentials:</div>
+                        <ol style="margin: 0; padding-left: 16px; display: flex; flex-direction: column; gap: 6px;">
+                            <li>Go to the <a href="https://console.cloud.google.com/" target="_blank" style="color: #3b82f6; text-decoration: underline;">Google Cloud Console</a>.</li>
+                            <li>Create a new project (or select an existing one).</li>
+                            <li>In the APIs Library, search for <strong>Gmail API</strong> and click <strong>Enable</strong>.</li>
+                            <li>Go to the <strong>OAuth Consent Screen</strong> tab, select <strong>External</strong>, and fill in app name & your email.</li>
+                            <li>In the OAuth Consent Screen <strong>Test Users</strong> section, add your Gmail address as a test user.</li>
+                            <li>Go to the <strong>Credentials</strong> tab, click <strong>Create Credentials</strong> -> <strong>OAuth client ID</strong>.</li>
+                            <li>Choose <strong>Desktop app</strong> as the application type and click <strong>Create</strong>.</li>
+                            <li>Download the credentials JSON, rename the file to exactly <code>credentials.json</code>, and upload it here!</li>
+                        </ol>
+                    </div>
+                </div>
             </div>
             <div class="modal-footer" style="margin-top: 8px;">
                 <button id="modal-link-cancel" class="action-check-btn" style="height:36px; padding:0 16px;">Cancel</button>

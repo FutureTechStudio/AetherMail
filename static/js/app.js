@@ -318,11 +318,28 @@ async function checkStatus() {
                         <p style="font-size: 11px; color: var(--text-muted); margin: 0; line-height: 1.4;">
                             Configure OAuth in Google Cloud Console, download client secrets JSON, and upload it:
                         </p>
-                        <label class="sync-action-btn" style="width: 100%; justify-content: center; cursor: pointer; margin-top: 4px; border-color: rgba(59, 130, 246, 0.3); color: #3b82f6; display: flex; align-items: center; gap: 6px; box-sizing: border-box;">
+                        <label class="sync-action-btn" style="width: 100%; justify-content: center; cursor: pointer; margin-top: 4px; border-color: rgba(59, 130, 246, 0.3); color: #3b82f6; display: flex; align-items: center; gap: 6px; box-sizing: border-box; margin-bottom: 2px;">
                             <i data-lucide="upload-cloud" style="width: 14px; height: 14px;"></i>
                             <span>Upload credentials.json</span>
                             <input type="file" id="credentials-file-input" style="display:none;" onchange="handleCredentialsUpload(event)">
                         </label>
+                        
+                        <div style="margin-top: 4px; width: 100%;">
+                            <a href="#" onclick="toggleCredentialsInstructions(event)" style="font-size: 11px; color: #3b82f6; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; font-weight: 500;">
+                                <i data-lucide="help-circle" style="width:12px; height:12px;"></i>
+                                <span>How to get credentials.json?</span>
+                            </a>
+                            <div id="credentials-instructions-sidebar" class="instructions-accordion" style="display: none; flex-direction: column; gap: 6px; margin-top: 6px; padding: 10px; background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); border-radius: 6px; font-size: 11px; line-height: 1.4; color: var(--text-secondary); max-height: 150px; overflow-y: auto; text-align: left;">
+                                <div style="font-weight: 700; color: var(--text-primary); margin-bottom: 2px;">Steps to generate:</div>
+                                <ol style="margin: 0; padding-left: 14px; display: flex; flex-direction: column; gap: 4px;">
+                                    <li>Go to <a href="https://console.cloud.google.com/" target="_blank" style="color: #3b82f6; text-decoration: underline;">Google Cloud Console</a>.</li>
+                                    <li>Create a project and enable the <strong>Gmail API</strong>.</li>
+                                    <li>Configure <strong>OAuth Consent Screen</strong> (set External + add your email as Test User).</li>
+                                    <li>Go to <strong>Credentials</strong> -> <strong>Create Credentials</strong> -> <strong>OAuth client ID</strong> (Desktop app).</li>
+                                    <li>Download JSON, rename to exactly <code>credentials.json</code>, and upload!</li>
+                                </ol>
+                            </div>
+                        </div>
                     </div>
                 `;
             } else {
@@ -2144,6 +2161,20 @@ async function submitLinkProfileModal(event) {
     await linkGoogleAccount();
 }
 
+function toggleCredentialsInstructions(event) {
+    if (event) event.preventDefault();
+    
+    const modalInstructions = document.getElementById('credentials-instructions-modal');
+    if (modalInstructions) {
+        modalInstructions.style.display = (modalInstructions.style.display === 'none' || modalInstructions.style.display === '') ? 'flex' : 'none';
+    }
+    
+    const sidebarInstructions = document.getElementById('credentials-instructions-sidebar');
+    if (sidebarInstructions) {
+        sidebarInstructions.style.display = (sidebarInstructions.style.display === 'none' || sidebarInstructions.style.display === '') ? 'flex' : 'none';
+    }
+}
+
 window.toggleNavSection = toggleNavSection;
 window.openUnsubscribeTool = openUnsubscribeTool;
 window.openBulkDeleteTool = openBulkDeleteTool;
@@ -2160,4 +2191,5 @@ window.toggleProfileSwitcher = toggleProfileSwitcher;
 window.switchActiveProfile = switchActiveProfile;
 window.openLinkProfileModal = openLinkProfileModal;
 window.submitLinkProfileModal = submitLinkProfileModal;
+window.toggleCredentialsInstructions = toggleCredentialsInstructions;
 
