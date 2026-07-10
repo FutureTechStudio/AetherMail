@@ -116,7 +116,7 @@ def init_db():
     conn.commit()
     conn.close()
 
-def get_gmail_service():
+def get_gmail_service(run_flow=True):
     creds = None
     if os.path.exists('token.json'):
         # Check if the scopes in token.json match our requested SCOPES
@@ -137,10 +137,19 @@ def get_gmail_service():
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
             print("Refreshing token...")
-            creds.refresh(Request())
-            with open('token.json', 'w') as token:
-                token.write(creds.to_json())
-        else:
+            try:
+                creds.refresh(Request())
+                with open('token.json', 'w') as token:
+                    token.write(creds.to_json())
+            except Exception as e:
+                print(f"Token refresh failed: {e}")
+                creds = None
+                
+        if not creds or not creds.valid:
+            if not run_flow:
+                raise Exception("Token expired or missing")
+            if not os.path.exists('credentials.json'):
+                raise FileNotFoundError("Missing credentials.json")
             print("Token is missing or invalid. Triggering flow...")
             flow = InstalledAppFlow.from_client_secrets_file('credentials.json', SCOPES)
             creds = flow.run_local_server(port=0)
@@ -389,8 +398,9 @@ def index():
 
 @app.route('/api/status')
 def status():
+    credentials_present = os.path.exists('credentials.json')
     try:
-        service = get_gmail_service()
+        service = get_gmail_service(run_flow=False)
         profile = service.users().getProfile(userId='me').execute()
         
         # Get count of locally cached emails
@@ -402,6 +412,7 @@ def status():
         
         return jsonify({
             'authenticated': True,
+            'credentials_present': True,
             'email': profile.get('emailAddress'),
             'messagesTotal': profile.get('messagesTotal'),
             'cachedTotal': cached_count,
@@ -410,8 +421,63 @@ def status():
     except Exception as e:
         return jsonify({
             'authenticated': False,
+            'credentials_present': credentials_present,
             'error': str(e)
-        }), 500
+        })
+
+@app.route('/api/auth/link', methods=['POST'])
+def link_account():
+    try:
+        service = get_gmail_service(run_flow=True)
+        profile = service.users().getProfile(userId='me').execute()
+        
+        sync_info['status'] = 'idle'
+        sync_info['current_page'] = 0
+        sync_info['new_messages_fetched'] = 0
+        
+        start_sync()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Account linked successfully.',
+            'email': profile.get('emailAddress')
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/auth/unlink', methods=['POST'])
+def unlink_account():
+    try:
+        if os.path.exists('token.json'):
+            os.remove('token.json')
+        
+        sync_info['status'] = 'idle'
+        sync_info['current_page'] = 0
+        sync_info['new_messages_fetched'] = 0
+        
+        return jsonify({
+            'success': True,
+            'message': 'Google Account unlinked successfully.'
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/auth/upload-credentials', methods=['POST'])
+def upload_credentials():
+    try:
+        if 'file' not in request.files:
+            return jsonify({'error': 'No file part in request'}), 400
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'error': 'No selected file'}), 400
+        
+        file.save('credentials.json')
+        return jsonify({
+            'success': True,
+            'message': 'credentials.json uploaded successfully.'
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/sync/start', methods=['POST'])
 def trigger_sync():
@@ -1184,6 +1250,7 @@ def download_archive(filename):
 
 if __name__ == '__main__':
     init_db()
-    # Trigger background sync automatically on startup
-    start_sync()
+    # Trigger background sync automatically on startup only if authenticated
+    if os.path.exists('token.json') and os.path.exists('credentials.json'):
+        start_sync()
     app.run(debug=True, port=5000, use_reloader=False) # Disable reloader to prevent duplicate threads on startup

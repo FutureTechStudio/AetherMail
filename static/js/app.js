@@ -224,12 +224,18 @@ async function checkStatus() {
         if (data.authenticated) {
             const initial = data.email ? data.email.charAt(0).toUpperCase() : 'G';
             elements.accountStatus.innerHTML = `
-                <div class="account-status-card">
-                    <div class="account-avatar">${initial}</div>
-                    <div class="account-info">
-                        <div class="account-name">Google Account</div>
-                        <div class="account-email" title="${data.email}">${data.email}</div>
+                <div class="account-status-card" style="flex-direction: column; align-items: flex-start; gap: 8px; width: 100%;">
+                    <div style="display: flex; align-items: center; gap: 12px; width: 100%;">
+                        <div class="account-avatar">${initial}</div>
+                        <div class="account-info" style="flex: 1; min-width: 0;">
+                            <div class="account-name">Google Account</div>
+                            <div class="account-email" title="${data.email}">${data.email}</div>
+                        </div>
                     </div>
+                    <button onclick="unlinkGoogleAccount(event)" class="sync-action-btn" style="font-size: 11px; padding: 6px 12px; height: auto; width: 100%; justify-content: center; gap: 6px; margin: 4px 0 0 0; background: transparent; border-color: rgba(239, 68, 68, 0.3); color: #ef4444; display: flex; align-items: center; cursor: pointer;">
+                        <i data-lucide="log-out" style="width: 12px; height: 12px;"></i>
+                        <span>Unlink Account</span>
+                    </button>
                 </div>
             `;
             
@@ -238,17 +244,44 @@ async function checkStatus() {
                 updateSyncUI(data.sync);
             }
         } else {
-            elements.accountStatus.innerHTML = `
-                <div class="account-status-card" style="color: hsl(0, 85%, 65%);">
-                    <i data-lucide="alert-triangle"></i>
-                    <div class="account-info" style="margin-left: 8px;">
-                        <div class="account-name" style="font-weight:600">Disconnected</div>
-                        <div class="account-email">Missing credentials</div>
+            if (!data.credentials_present) {
+                // Missing credentials.json
+                elements.accountStatus.innerHTML = `
+                    <div class="account-status-card" style="flex-direction: column; align-items: flex-start; gap: 8px; width: 100%;">
+                        <div style="display: flex; align-items: center; gap: 8px; color: #ef4444; width: 100%;">
+                            <i data-lucide="alert-triangle" style="flex-shrink: 0;"></i>
+                            <div class="account-name" style="font-weight:600; white-space: normal;">Missing credentials.json</div>
+                        </div>
+                        <p style="font-size: 11px; color: var(--text-muted); margin: 0; line-height: 1.4;">
+                            Configure OAuth in Google Cloud Console, download client secrets JSON, and upload it:
+                        </p>
+                        <label class="sync-action-btn" style="width: 100%; justify-content: center; cursor: pointer; margin-top: 4px; border-color: rgba(59, 130, 246, 0.3); color: #3b82f6; display: flex; align-items: center; gap: 6px; box-sizing: border-box;">
+                            <i data-lucide="upload-cloud" style="width: 14px; height: 14px;"></i>
+                            <span>Upload credentials.json</span>
+                            <input type="file" id="credentials-file-input" style="display:none;" onchange="handleCredentialsUpload(event)">
+                        </label>
                     </div>
-                </div>
-            `;
-            lucide.createIcons();
+                `;
+            } else {
+                // Credentials present but not authenticated
+                elements.accountStatus.innerHTML = `
+                    <div class="account-status-card" style="flex-direction: column; align-items: flex-start; gap: 8px; width: 100%;">
+                        <div style="display: flex; align-items: center; gap: 8px; color: #f59e0b; width: 100%;">
+                            <i data-lucide="key-round" style="flex-shrink: 0;"></i>
+                            <div class="account-name" style="font-weight:600; white-space: normal;">Google Link Required</div>
+                        </div>
+                        <p style="font-size: 11px; color: var(--text-muted); margin: 0; line-height: 1.4;">
+                            Credentials configured. Link your Google account to grant inbox access:
+                        </p>
+                        <button onclick="linkGoogleAccount(event)" class="sync-action-btn" style="width: 100%; justify-content: center; margin-top: 4px; background: var(--primary-gradient); border: none; color: white; display: flex; align-items: center; gap: 6px; cursor: pointer; box-sizing: border-box;">
+                            <i data-lucide="link" style="width: 14px; height: 14px;"></i>
+                            <span>Link Google Account</span>
+                        </button>
+                    </div>
+                `;
+            }
         }
+        lucide.createIcons();
     } catch (err) {
         console.error("Status check failed", err);
     }
@@ -1760,6 +1793,101 @@ async function handleRouting() {
     window.location.hash = '#/category/all';
 }
 
+async function linkGoogleAccount(event) {
+    if (event) event.preventDefault();
+    
+    elements.accountStatus.innerHTML = `
+        <div class="account-loader" style="display: flex; align-items: center; gap: 10px;">
+            <div class="spinner-small"></div>
+            <span style="font-size: 12px;">Linking... Check browser popup</span>
+        </div>
+    `;
+    
+    try {
+        const response = await apiFetch('/api/auth/link', { method: 'POST' });
+        const data = await response.json();
+        
+        if (data.success) {
+            await showAppAlert("Google Account Linked", `Successfully authenticated ${data.email}! Starting local cache sync...`, "success");
+            window.location.reload();
+        } else {
+            await showAppAlert("Link Failed", data.error || "Failed to link Google account.", "warning");
+            await checkStatus();
+        }
+    } catch (err) {
+        console.error("Link account error:", err);
+        await showAppAlert("Connection Error", "Failed to communicate with authorization server.", "warning");
+        await checkStatus();
+    }
+}
+
+async function unlinkGoogleAccount(event) {
+    if (event) event.preventDefault();
+    
+    const confirmed = await showAppConfirm(
+        "Unlink Account?",
+        "Are you sure you want to unlink your Google account? This will stop inbox synchronization and log you out."
+    );
+    if (!confirmed) return;
+    
+    try {
+        const response = await apiFetch('/api/auth/unlink', { method: 'POST' });
+        const data = await response.json();
+        
+        if (data.success) {
+            await showAppAlert("Unlinked", "Google account unlinked successfully.", "success");
+            window.location.reload();
+        } else {
+            await showAppAlert("Failed", data.error || "Failed to unlink Google account.", "warning");
+        }
+    } catch (err) {
+        console.error("Unlink error:", err);
+        await showAppAlert("Connection Error", "Failed to communicate with unlinking server.", "warning");
+    }
+}
+
+async function handleCredentialsUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    if (!file.name.endsWith('.json')) {
+        await showAppAlert("Invalid File", "Please upload a valid JSON credentials file.", "warning");
+        return;
+    }
+    
+    elements.accountStatus.innerHTML = `
+        <div class="account-loader" style="display: flex; align-items: center; gap: 10px;">
+            <div class="spinner-small"></div>
+            <span style="font-size: 12px;">Uploading credentials...</span>
+        </div>
+    `;
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    try {
+        const response = await fetch('/api/auth/upload-credentials', {
+            method: 'POST',
+            headers: {
+                'X-API-Token': apiToken
+            },
+            body: formData
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+            await showAppAlert("Upload Success", "credentials.json uploaded successfully! You can now link your Google Account.", "success");
+        } else {
+            await showAppAlert("Upload Failed", data.error || "Failed to upload file.", "warning");
+        }
+    } catch (err) {
+        console.error("Upload error:", err);
+        await showAppAlert("Connection Error", "Failed to upload file to the server.", "warning");
+    } finally {
+        await checkStatus();
+    }
+}
+
 window.toggleNavSection = toggleNavSection;
 window.openUnsubscribeTool = openUnsubscribeTool;
 window.openBulkDeleteTool = openBulkDeleteTool;
@@ -1769,4 +1897,7 @@ window.markInitiated = markInitiated;
 window.removeFromDeleteQueue = removeFromDeleteQueue;
 window.switchDeleteTab = switchDeleteTab;
 window.runBulkDelete = runBulkDelete;
+window.linkGoogleAccount = linkGoogleAccount;
+window.unlinkGoogleAccount = unlinkGoogleAccount;
+window.handleCredentialsUpload = handleCredentialsUpload;
 
