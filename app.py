@@ -293,12 +293,15 @@ def get_email_body(payload):
         
     return html_body if html_body else body
 
+sync_stop_event = threading.Event()
+
 # Background sync function
 def run_background_sync():
     global sync_info
     if sync_info['status'] == 'syncing':
         return
         
+    sync_stop_event.clear()
     sync_info['status'] = 'syncing'
     sync_info['error'] = None
     sync_info['new_messages_fetched'] = 0
@@ -322,6 +325,10 @@ def run_background_sync():
         conn.close()
         
         while True:
+            if sync_stop_event.is_set():
+                print("Sync stopped by user request.")
+                sync_info['status'] = 'idle'
+                break
             # Query Gmail for Promotions and Updates
             # Fetch 100 messages at a time (keeps API requests manageable and UI responsive)
             results = service.users().messages().list(
@@ -441,6 +448,11 @@ def run_background_sync():
                 sync_info['new_messages_fetched'] += len(metadata_list)
                 conn.close()
                 
+            if sync_stop_event.is_set():
+                print("Sync stopped by user request.")
+                sync_info['status'] = 'idle'
+                break
+                
             # If we hit already cached messages and we have completed history sync in past,
             # we can stop paging because everything older is guaranteed to be cached.
             if history_completed and len(existing_ids) > 0:
@@ -543,8 +555,6 @@ def link_account():
         sync_info['current_page'] = 0
         sync_info['new_messages_fetched'] = 0
         
-        start_sync()
-        
         return jsonify({
             'success': True,
             'message': 'Account linked successfully.',
@@ -617,8 +627,6 @@ def switch_profile():
         sync_info['current_page'] = 0
         sync_info['new_messages_fetched'] = 0
         
-        start_sync()
-        
         return jsonify({
             'success': True,
             'message': f"Switched to profile {email}"
@@ -647,8 +655,18 @@ def upload_credentials():
 def trigger_sync():
     if sync_info['status'] == 'syncing':
         return jsonify({'message': 'Sync already in progress', 'sync': sync_info})
+    sync_stop_event.clear()
     start_sync()
     return jsonify({'message': 'Sync started', 'sync': sync_info})
+
+@app.route('/api/sync/stop', methods=['POST'])
+def stop_sync():
+    if sync_info['status'] == 'syncing':
+        sync_stop_event.set()
+        sync_info['status'] = 'idle'
+        threading.Thread(target=lambda: (time.sleep(1.5), sync_stop_event.clear())).start()
+        return jsonify({'message': 'Sync stopping...', 'sync': sync_info})
+    return jsonify({'message': 'Sync is not running', 'sync': sync_info})
 
 @app.route('/api/sync/status')
 def get_sync_status():
@@ -1414,8 +1432,4 @@ def download_archive(filename):
 
 if __name__ == '__main__':
     init_db()
-    # Trigger background sync automatically on startup only if authenticated
-    active_profile = get_active_profile()
-    if active_profile and os.path.exists(f"token_{active_profile}.json") and os.path.exists('credentials.json'):
-        start_sync()
     app.run(debug=True, port=5000, use_reloader=False) # Disable reloader to prevent duplicate threads on startup

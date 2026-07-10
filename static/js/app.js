@@ -198,16 +198,33 @@ function bindEvents() {
         elements.startBulkDeleteBtn.addEventListener('click', runBulkDelete);
     }
 
-    // Trigger manual Sync
+    // Trigger manual Sync (Start / Stop toggle)
     elements.triggerSyncBtn.addEventListener('click', async () => {
+        const isSyncing = state.status && state.status.sync && state.status.sync.status === 'syncing';
+        
         try {
             elements.triggerSyncBtn.disabled = true;
-            const res = await apiFetch('/api/sync/start', { method: 'POST' });
-            const data = await res.json();
-            updateSyncUI(data.sync);
-            startSyncPolling();
+            if (isSyncing) {
+                elements.triggerSyncBtn.innerHTML = `<div class="spinner-small" style="width:12px; height:12px; border-width:2px; margin-right:6px;"></div> Stopping...`;
+                const res = await apiFetch('/api/sync/stop', { method: 'POST' });
+                const data = await res.json();
+                state.status.sync = data.sync;
+                updateSyncUI(data.sync);
+                
+                if (state.syncInterval) {
+                    clearInterval(state.syncInterval);
+                    state.syncInterval = null;
+                }
+            } else {
+                elements.triggerSyncBtn.innerHTML = `<div class="spinner-small" style="width:12px; height:12px; border-width:2px; margin-right:6px;"></div> Starting...`;
+                const res = await apiFetch('/api/sync/start', { method: 'POST' });
+                const data = await res.json();
+                state.status.sync = data.sync;
+                updateSyncUI(data.sync);
+                startSyncPolling();
+            }
         } catch (err) {
-            console.error("Failed to start sync", err);
+            console.error("Failed to toggle sync", err);
         } finally {
             elements.triggerSyncBtn.disabled = false;
         }
@@ -741,11 +758,17 @@ function updateSyncUI(syncData) {
     
     // If syncing, disable manual sync button and rotate its icon
     if (syncData.status === 'syncing') {
-        elements.triggerSyncBtn.innerHTML = `<i data-lucide="loader-2" class="spinner-small" style="margin-right:6px"></i> Syncing...`;
-        elements.triggerSyncBtn.disabled = true;
+        elements.triggerSyncBtn.innerHTML = `<i data-lucide="square" style="margin-right:6px; width:12px; height:12px;"></i> Pause Sync`;
+        elements.triggerSyncBtn.disabled = false;
+        elements.triggerSyncBtn.style.background = '#f59e0b';
+        elements.triggerSyncBtn.style.borderColor = 'transparent';
+        elements.triggerSyncBtn.style.color = 'white';
     } else {
         elements.triggerSyncBtn.innerHTML = `<i data-lucide="refresh-cw"></i> Sync Inbox`;
         elements.triggerSyncBtn.disabled = false;
+        elements.triggerSyncBtn.style.background = '';
+        elements.triggerSyncBtn.style.borderColor = '';
+        elements.triggerSyncBtn.style.color = '';
     }
     
     lucide.createIcons();
