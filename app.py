@@ -56,6 +56,25 @@ def get_db_connection():
     return conn
 
 def init_db():
+    # Migrate legacy database if present
+    if os.path.exists('gmail_cache.db'):
+        active_email = get_active_profile()
+        if active_email:
+            sanitized = re.sub(r'[^a-zA-Z0-9@.]', '_', active_email)
+            target_db = f"gmail_cache_{sanitized}.db"
+            if not os.path.exists(target_db):
+                try:
+                    os.rename('gmail_cache.db', target_db)
+                    print(f"Migrated legacy database to {target_db}")
+                    if os.path.exists('gmail_cache.db-wal'):
+                        try: os.rename('gmail_cache.db-wal', f"{target_db}-wal")
+                        except Exception: pass
+                    if os.path.exists('gmail_cache.db-shm'):
+                        try: os.rename('gmail_cache.db-shm', f"{target_db}-shm")
+                        except Exception: pass
+                except Exception as db_err:
+                    print(f"Error migrating legacy database: {db_err}")
+
     conn = get_db_connection()
     conn.execute('''
         CREATE TABLE IF NOT EXISTS messages (
@@ -510,6 +529,16 @@ def link_account():
         # Initialize the database for this new profile dynamically
         init_db()
         
+        # Pre-populate sync_info count to prevent flickering
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute("SELECT count(*) FROM messages")
+            sync_info['total_cached'] = cursor.fetchone()[0]
+            conn.close()
+        except Exception:
+            sync_info['total_cached'] = 0
+            
         sync_info['status'] = 'idle'
         sync_info['current_page'] = 0
         sync_info['new_messages_fetched'] = 0
@@ -574,6 +603,16 @@ def switch_profile():
         set_active_profile(email)
         init_db()
         
+        # Pre-populate sync_info count to prevent flickering
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute("SELECT count(*) FROM messages")
+            sync_info['total_cached'] = cursor.fetchone()[0]
+            conn.close()
+        except Exception:
+            sync_info['total_cached'] = 0
+            
         sync_info['status'] = 'idle'
         sync_info['current_page'] = 0
         sync_info['new_messages_fetched'] = 0
