@@ -62,18 +62,28 @@ def init_db():
         if active_email:
             sanitized = re.sub(r'[^a-zA-Z0-9@.]', '_', active_email)
             target_db = f"gmail_cache_{sanitized}.db"
-            if not os.path.exists(target_db):
-                try:
-                    os.rename('gmail_cache.db', target_db)
-                    print(f"Migrated legacy database to {target_db}")
-                    if os.path.exists('gmail_cache.db-wal'):
-                        try: os.rename('gmail_cache.db-wal', f"{target_db}-wal")
-                        except Exception: pass
-                    if os.path.exists('gmail_cache.db-shm'):
-                        try: os.rename('gmail_cache.db-shm', f"{target_db}-shm")
-                        except Exception: pass
-                except Exception as db_err:
-                    print(f"Error migrating legacy database: {db_err}")
+            try:
+                # Overwrite new target database with legacy database if legacy exists
+                if os.path.exists(target_db):
+                    os.remove(target_db)
+                os.rename('gmail_cache.db', target_db)
+                print(f"Forced migration of legacy database to {target_db}")
+                
+                # Migrate WAL auxiliary files
+                if os.path.exists('gmail_cache.db-wal'):
+                    try:
+                        if os.path.exists(f"{target_db}-wal"):
+                            os.remove(f"{target_db}-wal")
+                        os.rename('gmail_cache.db-wal', f"{target_db}-wal")
+                    except Exception: pass
+                if os.path.exists('gmail_cache.db-shm'):
+                    try:
+                        if os.path.exists(f"{target_db}-shm"):
+                            os.remove(f"{target_db}-shm")
+                        os.rename('gmail_cache.db-shm', f"{target_db}-shm")
+                    except Exception: pass
+            except Exception as db_err:
+                print(f"Error migrating legacy database: {db_err}")
 
     conn = get_db_connection()
     conn.execute('''
