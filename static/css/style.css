@@ -1348,3 +1348,119 @@ body {
     color: var(--primary);
     background: hsla(145, 45%, 35%, 0.06);
 }
+
+/* Profile Switcher Dropup Menu Styles */
+.profile-switcher-menu {
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 0;
+    right: 0;
+    background: rgba(30, 41, 59, 0.95);
+    backdrop-filter: blur(16px);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+    padding: 12px;
+    display: none;
+    flex-direction: column;
+    gap: 8px;
+    z-index: 1000;
+    animation: slideUp 0.18s ease-out;
+}
+
+.profile-switcher-header {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    letter-spacing: 0.05em;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.profile-switcher-list {
+    max-height: 160px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.profile-switcher-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: var(--transition-smooth);
+}
+
+.profile-switcher-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.profile-switcher-item.active {
+    background: rgba(59, 130, 246, 0.08);
+    border: 1px solid rgba(59, 130, 246, 0.15);
+}
+
+.profile-item-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.profile-item-email {
+    font-size: 12px;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.profile-switcher-footer {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding-top: 6px;
+    border-top: 1px solid var(--border-color);
+}
+
+.switcher-action-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    padding: 6px 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: var(--transition-smooth);
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.switcher-action-btn:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: var(--text-secondary);
+}
+
+.switcher-action-btn.primary {
+    background: var(--primary-gradient);
+    border: none;
+    color: white;
+    justify-content: center;
+}
+
+.switcher-action-btn.danger {
+    color: #ef4444;
+    border-color: rgba(239, 68, 68, 0.2);
+    justify-content: center;
+}
+
+.switcher-action-btn.danger:hover {
+    background: rgba(239, 68, 68, 0.05);
+    border-color: #ef4444;
+}

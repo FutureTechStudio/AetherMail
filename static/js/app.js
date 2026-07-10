@@ -224,18 +224,18 @@ async function checkStatus() {
         if (data.authenticated) {
             const initial = data.email ? data.email.charAt(0).toUpperCase() : 'G';
             elements.accountStatus.innerHTML = `
-                <div class="account-status-card" style="flex-direction: column; align-items: flex-start; gap: 8px; width: 100%;">
-                    <div style="display: flex; align-items: center; gap: 12px; width: 100%;">
+                <div id="profile-switcher-menu" class="profile-switcher-menu" style="display: none;"></div>
+                <div class="account-status-card" onclick="toggleProfileSwitcher(event)" style="cursor: pointer; display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                    <div style="display: flex; align-items: center; gap: 12px; min-width: 0; flex: 1;">
                         <div class="account-avatar">${initial}</div>
                         <div class="account-info" style="flex: 1; min-width: 0;">
-                            <div class="account-name">Google Account</div>
+                            <div class="account-name" style="display: flex; align-items: center; gap: 6px;">
+                                <span>Google Account</span>
+                                <i data-lucide="chevron-up" style="width: 12px; height: 12px; color: var(--text-muted);"></i>
+                            </div>
                             <div class="account-email" title="${data.email}">${data.email}</div>
                         </div>
                     </div>
-                    <button onclick="unlinkGoogleAccount(event)" class="sync-action-btn" style="font-size: 11px; padding: 6px 12px; height: auto; width: 100%; justify-content: center; gap: 6px; margin: 4px 0 0 0; background: transparent; border-color: rgba(239, 68, 68, 0.3); color: #ef4444; display: flex; align-items: center; cursor: pointer;">
-                        <i data-lucide="log-out" style="width: 12px; height: 12px;"></i>
-                        <span>Unlink Account</span>
-                    </button>
                 </div>
             `;
             
@@ -247,6 +247,7 @@ async function checkStatus() {
             if (!data.credentials_present) {
                 // Missing credentials.json
                 elements.accountStatus.innerHTML = `
+                    <div id="profile-switcher-menu" class="profile-switcher-menu" style="display: none;"></div>
                     <div class="account-status-card" style="flex-direction: column; align-items: flex-start; gap: 8px; width: 100%;">
                         <div style="display: flex; align-items: center; gap: 8px; color: #ef4444; width: 100%;">
                             <i data-lucide="alert-triangle" style="flex-shrink: 0;"></i>
@@ -265,22 +266,66 @@ async function checkStatus() {
             } else {
                 // Credentials present but not authenticated
                 elements.accountStatus.innerHTML = `
-                    <div class="account-status-card" style="flex-direction: column; align-items: flex-start; gap: 8px; width: 100%;">
+                    <div id="profile-switcher-menu" class="profile-switcher-menu" style="display: none;"></div>
+                    <div class="account-status-card" onclick="toggleProfileSwitcher(event)" style="cursor: pointer; display: flex; align-items: center; justify-content: space-between; width: 100%; margin-bottom: 8px;">
                         <div style="display: flex; align-items: center; gap: 8px; color: #f59e0b; width: 100%;">
                             <i data-lucide="key-round" style="flex-shrink: 0;"></i>
-                            <div class="account-name" style="font-weight:600; white-space: normal;">Google Link Required</div>
+                            <div class="account-name" style="font-weight:600; white-space: normal; display: flex; align-items: center; gap: 6px;">
+                                <span>Google Link Required</span>
+                                <i data-lucide="chevron-up" style="width: 12px; height: 12px; color: var(--text-muted);"></i>
+                            </div>
                         </div>
-                        <p style="font-size: 11px; color: var(--text-muted); margin: 0; line-height: 1.4;">
-                            Credentials configured. Link your Google account to grant inbox access:
-                        </p>
-                        <button onclick="linkGoogleAccount(event)" class="sync-action-btn" style="width: 100%; justify-content: center; margin-top: 4px; background: var(--primary-gradient); border: none; color: white; display: flex; align-items: center; gap: 6px; cursor: pointer; box-sizing: border-box;">
-                            <i data-lucide="link" style="width: 14px; height: 14px;"></i>
-                            <span>Link Google Account</span>
-                        </button>
                     </div>
+                    <button onclick="linkGoogleAccount(event)" class="sync-action-btn" style="width: 100%; justify-content: center; margin-top: 4px; background: var(--primary-gradient); border: none; color: white; display: flex; align-items: center; gap: 6px; cursor: pointer; box-sizing: border-box;">
+                        <i data-lucide="link" style="width: 14px; height: 14px;"></i>
+                        <span>Link Google Account</span>
+                    </button>
                 `;
             }
         }
+        
+        // Populate profile switcher menu
+        const menu = document.getElementById('profile-switcher-menu');
+        if (menu) {
+            let listHtml = '';
+            if (data.linked_profiles && data.linked_profiles.length > 0) {
+                listHtml = data.linked_profiles.map(email => {
+                    const isActive = email === data.active_profile;
+                    const activeClass = isActive ? 'active' : '';
+                    const checkIcon = isActive ? '<i data-lucide="check" style="color: #10b981; width:14px; height:14px; margin-left:auto;"></i>' : '';
+                    const pInitial = email.charAt(0).toUpperCase();
+                    return `
+                        <div class="profile-switcher-item ${activeClass}" onclick="switchActiveProfile('${email}')">
+                            <div class="account-avatar" style="width:24px; height:24px; font-size:10px; flex-shrink:0;">${pInitial}</div>
+                            <span class="profile-item-email" title="${email}">${email}</span>
+                            ${checkIcon}
+                        </div>
+                    `;
+                }).join('');
+            } else {
+                listHtml = '<div style="font-size:11px; color:var(--text-muted); text-align:center; padding:8px 0;">No accounts linked</div>';
+            }
+            
+            menu.innerHTML = `
+                <div class="profile-switcher-header">Linked Profiles</div>
+                <div class="profile-switcher-list">
+                    ${listHtml}
+                </div>
+                <div class="profile-switcher-footer">
+                    <button onclick="linkGoogleAccount(event)" class="switcher-action-btn primary">
+                        <i data-lucide="plus" style="width:13px; height:13px;"></i>
+                        <span>Link another account...</span>
+                    </button>
+                    ${data.authenticated ? `
+                    <button onclick="unlinkGoogleAccount(event)" class="switcher-action-btn danger">
+                        <i data-lucide="trash-2" style="width:13px; height:13px;"></i>
+                        <span>Unlink active account</span>
+                    </button>
+                    ` : ''}
+                </div>
+            `;
+        }
+        
         lucide.createIcons();
     } catch (err) {
         console.error("Status check failed", err);
@@ -1888,6 +1933,48 @@ async function handleCredentialsUpload(event) {
     }
 }
 
+function toggleProfileSwitcher(event) {
+    if (event) event.stopPropagation();
+    const menu = document.getElementById('profile-switcher-menu');
+    if (!menu) return;
+    
+    if (menu.style.display === 'none' || menu.style.display === '') {
+        menu.style.display = 'flex';
+        const closeMenu = (e) => {
+            const statusCard = document.getElementById('account-status');
+            if (menu && !menu.contains(e.target) && statusCard && !statusCard.contains(e.target)) {
+                menu.style.display = 'none';
+                document.removeEventListener('click', closeMenu);
+            }
+        };
+        document.addEventListener('click', closeMenu);
+    } else {
+        menu.style.display = 'none';
+    }
+}
+
+async function switchActiveProfile(email) {
+    try {
+        const response = await apiFetch('/api/auth/switch', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ email })
+        });
+        const data = await response.json();
+        if (data.success) {
+            await showAppAlert("Profile Switched", `Switched active profile to ${email}`, "success");
+            window.location.reload();
+        } else {
+            await showAppAlert("Switch Failed", data.error || "Failed to switch profiles.", "warning");
+        }
+    } catch (err) {
+        console.error("Switch error:", err);
+        await showAppAlert("Connection Error", "Failed to switch active profile.", "warning");
+    }
+}
+
 window.toggleNavSection = toggleNavSection;
 window.openUnsubscribeTool = openUnsubscribeTool;
 window.openBulkDeleteTool = openBulkDeleteTool;
@@ -1900,4 +1987,6 @@ window.runBulkDelete = runBulkDelete;
 window.linkGoogleAccount = linkGoogleAccount;
 window.unlinkGoogleAccount = unlinkGoogleAccount;
 window.handleCredentialsUpload = handleCredentialsUpload;
+window.toggleProfileSwitcher = toggleProfileSwitcher;
+window.switchActiveProfile = switchActiveProfile;
 

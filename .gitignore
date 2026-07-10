@@ -6,9 +6,12 @@ __pycache__/
 # Gmail API OAuth Credentials & Tokens
 credentials.json
 token.json
+token_*.json
 
-# Local database cache
+# Local database cache & settings
 gmail_cache.db
+gmail_cache_*.db
+settings.json
 
 # Backup Archives
 archive/

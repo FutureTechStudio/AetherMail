@@ -49,7 +49,7 @@ sync_info = {
 }
 
 def get_db_connection():
-    conn = sqlite3.connect(DATABASE)
+    conn = sqlite3.connect(get_db_path())
     conn.row_factory = sqlite3.Row
     # Enable WAL mode for concurrency between background thread and Flask requests
     conn.execute('PRAGMA journal_mode=WAL;')
@@ -116,30 +116,76 @@ def init_db():
     conn.commit()
     conn.close()
 
-def get_gmail_service(run_flow=True):
-    creds = None
-    if os.path.exists('token.json'):
-        # Check if the scopes in token.json match our requested SCOPES
+def set_active_profile(email):
+    try:
+        with open('settings.json', 'w') as f:
+            json.dump({'active_profile': email}, f)
+    except Exception as e:
+        print(f"Error setting active profile: {e}")
+
+def get_active_profile():
+    if os.path.exists('settings.json'):
         try:
-            with open('token.json', 'r') as f:
+            with open('settings.json', 'r') as f:
+                return json.load(f).get('active_profile')
+        except Exception:
+            pass
+    # Fallback to scan directory
+    for file in os.listdir('.'):
+        if file.startswith('token_') and file.endswith('.json'):
+            email = file[6:-5]
+            set_active_profile(email)
+            return email
+    # Backward compatibility
+    if os.path.exists('token.json'):
+        try:
+            creds = Credentials.from_authorized_user_file('token.json', SCOPES)
+            service = build('gmail', 'v1', credentials=creds)
+            profile = service.users().getProfile(userId='me').execute()
+            email = profile.get('emailAddress')
+            if email:
+                os.rename('token.json', f'token_{email}.json')
+                set_active_profile(email)
+                return email
+        except Exception as e:
+            print(f"Failed to migrate legacy token.json: {e}")
+            try:
+                os.remove('token.json')
+            except Exception:
+                pass
+    return None
+
+def get_db_path():
+    email = get_active_profile()
+    if email:
+        sanitized = re.sub(r'[^a-zA-Z0-9@.]', '_', email)
+        return f'gmail_cache_{sanitized}.db'
+    return 'gmail_cache_default.db'
+
+def get_gmail_service(run_flow=True):
+    active_email = get_active_profile()
+    token_path = f"token_{active_email}.json" if active_email else "token_temp.json"
+    
+    creds = None
+    if active_email and os.path.exists(token_path):
+        try:
+            with open(token_path, 'r') as f:
                 token_data = json.load(f)
             token_scopes = token_data.get('scopes', [])
-            # If any requested scope is not in the token's scopes, discard the token to force re-auth
             if not all(scope in token_scopes for scope in SCOPES):
-                print("Token scopes mismatch. Re-authenticating...")
-                os.remove('token.json')
+                print(f"Token scopes mismatch for {active_email}. Discarding token...")
+                os.remove(token_path)
+            else:
+                creds = Credentials.from_authorized_user_file(token_path, SCOPES)
         except Exception as e:
             print(f"Error checking token scopes: {e}")
             
-    if os.path.exists('token.json'):
-        creds = Credentials.from_authorized_user_file('token.json', SCOPES)
-    
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
-            print("Refreshing token...")
+            print(f"Refreshing token for {active_email}...")
             try:
                 creds.refresh(Request())
-                with open('token.json', 'w') as token:
+                with open(token_path, 'w') as token:
                     token.write(creds.to_json())
             except Exception as e:
                 print(f"Token refresh failed: {e}")
@@ -150,11 +196,25 @@ def get_gmail_service(run_flow=True):
                 raise Exception("Token expired or missing")
             if not os.path.exists('credentials.json'):
                 raise FileNotFoundError("Missing credentials.json")
-            print("Token is missing or invalid. Triggering flow...")
+            
+            print("Token is missing or invalid. Triggering OAuth Consent Flow...")
             flow = InstalledAppFlow.from_client_secrets_file('credentials.json', SCOPES)
             creds = flow.run_local_server(port=0)
-            with open('token.json', 'w') as token:
+            
+            temp_service = build('gmail', 'v1', credentials=creds)
+            profile = temp_service.users().getProfile(userId='me').execute()
+            new_email = profile.get('emailAddress')
+            
+            if not new_email:
+                raise Exception("Could not fetch user profile details")
+                
+            actual_token_path = f"token_{new_email}.json"
+            with open(actual_token_path, 'w') as token:
                 token.write(creds.to_json())
+            
+            set_active_profile(new_email)
+            print(f"Auth flow complete: Linked profile {new_email}")
+            return temp_service
                 
     return build('gmail', 'v1', credentials=creds)
 
@@ -399,7 +459,18 @@ def index():
 @app.route('/api/status')
 def status():
     credentials_present = os.path.exists('credentials.json')
+    active_profile = get_active_profile()
+    
+    # List all linked profiles
+    linked_profiles = []
+    for file in os.listdir('.'):
+        if file.startswith('token_') and file.endswith('.json'):
+            linked_profiles.append(file[6:-5])
+            
     try:
+        if not active_profile:
+            raise Exception("No active account linked")
+            
         service = get_gmail_service(run_flow=False)
         profile = service.users().getProfile(userId='me').execute()
         
@@ -416,12 +487,16 @@ def status():
             'email': profile.get('emailAddress'),
             'messagesTotal': profile.get('messagesTotal'),
             'cachedTotal': cached_count,
+            'active_profile': active_profile,
+            'linked_profiles': linked_profiles,
             'sync': sync_info
         })
     except Exception as e:
         return jsonify({
             'authenticated': False,
             'credentials_present': credentials_present,
+            'active_profile': active_profile,
+            'linked_profiles': linked_profiles,
             'error': str(e)
         })
 
@@ -430,6 +505,10 @@ def link_account():
     try:
         service = get_gmail_service(run_flow=True)
         profile = service.users().getProfile(userId='me').execute()
+        email = profile.get('emailAddress')
+        
+        # Initialize the database for this new profile dynamically
+        init_db()
         
         sync_info['status'] = 'idle'
         sync_info['current_page'] = 0
@@ -440,7 +519,7 @@ def link_account():
         return jsonify({
             'success': True,
             'message': 'Account linked successfully.',
-            'email': profile.get('emailAddress')
+            'email': email
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -448,9 +527,27 @@ def link_account():
 @app.route('/api/auth/unlink', methods=['POST'])
 def unlink_account():
     try:
-        if os.path.exists('token.json'):
-            os.remove('token.json')
+        data = request.get_json() or {}
+        email = data.get('email') or get_active_profile()
         
+        if email:
+            token_path = f"token_{email}.json"
+            if os.path.exists(token_path):
+                os.remove(token_path)
+            
+            # If we unlinked the active profile, switch to another linked one (or None)
+            active = get_active_profile()
+            if active == email:
+                remaining = []
+                for file in os.listdir('.'):
+                    if file.startswith('token_') and file.endswith('.json'):
+                        remaining.append(file[6:-5])
+                if remaining:
+                    set_active_profile(remaining[0])
+                else:
+                    if os.path.exists('settings.json'):
+                        os.remove('settings.json')
+                        
         sync_info['status'] = 'idle'
         sync_info['current_page'] = 0
         sync_info['new_messages_fetched'] = 0
@@ -458,6 +555,34 @@ def unlink_account():
         return jsonify({
             'success': True,
             'message': 'Google Account unlinked successfully.'
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/auth/switch', methods=['POST'])
+def switch_profile():
+    try:
+        data = request.get_json() or {}
+        email = data.get('email')
+        if not email:
+            return jsonify({'error': 'Missing email parameter'}), 400
+            
+        token_path = f"token_{email}.json"
+        if not os.path.exists(token_path):
+            return jsonify({'error': 'Profile token file not found'}), 404
+            
+        set_active_profile(email)
+        init_db()
+        
+        sync_info['status'] = 'idle'
+        sync_info['current_page'] = 0
+        sync_info['new_messages_fetched'] = 0
+        
+        start_sync()
+        
+        return jsonify({
+            'success': True,
+            'message': f"Switched to profile {email}"
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -1251,6 +1376,7 @@ def download_archive(filename):
 if __name__ == '__main__':
     init_db()
     # Trigger background sync automatically on startup only if authenticated
-    if os.path.exists('token.json') and os.path.exists('credentials.json'):
+    active_profile = get_active_profile()
+    if active_profile and os.path.exists(f"token_{active_profile}.json") and os.path.exists('credentials.json'):
         start_sync()
     app.run(debug=True, port=5000, use_reloader=False) # Disable reloader to prevent duplicate threads on startup
