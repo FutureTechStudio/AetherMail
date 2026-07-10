@@ -199,7 +199,7 @@ def get_gmail_service(run_flow=True):
             
             print("Token is missing or invalid. Triggering OAuth Consent Flow...")
             flow = InstalledAppFlow.from_client_secrets_file('credentials.json', SCOPES)
-            creds = flow.run_local_server(port=0)
+            creds = flow.run_local_server(port=0, prompt='select_account')
             
             temp_service = build('gmail', 'v1', credentials=creds)
             profile = temp_service.users().getProfile(userId='me').execute()
